@@ -101,6 +101,25 @@ FIELDS TO EXTRACT:
 23. corporate_policy (boolean): true if this is a group/employer-provided policy.
 
 
+24. instant_cover (boolean): true if the policy has an "Instant Cover", "Instant Coverage", or
+    "PED Waiver" add-on that reduces the PED waiting period to 30 days or fewer.
+    Look for text like: "Instant Cover", "PED wait period reduced to 30 days for
+    Diabetes/Hypertension/Hyperlipidemia/Asthma", or similar.
+
+
+25. instant_cover_conditions (array of strings): List of medical conditions covered under
+    Instant Cover. Look in the Optional Cover table.
+    Example: ["Hypertension", "Diabetes", "Hyperlipidemia", "Asthma"]
+    Empty array [] if instant_cover is false.
+
+
+26. ped_effective_months (integer): The EFFECTIVE PED waiting period in months AFTER any
+    Instant Cover or portability continuity credits:
+    - If instant_cover = true → return 1
+    - If portability continuity has reduced PED to 0 years → return 0
+    - Otherwise → return ped_months (the standard value)
+
+
 IMPORTANT RULES:
 - All currency amounts must be plain integers (no commas, no ₹ symbol).
 - For premium: scan ALL pages. It frequently appears on a separate receipt or schedule page.
@@ -142,6 +161,14 @@ RULES:
 - status must be exactly "green", "amber", or "red"
 - Be specific: use actual numbers from the policy (e.g. ₹5 Lakh, 36 months)
 - For "Global Health Coverage": even if not explicitly requested in preferences, treat it as a recommended premium feature for comprehensive protection. "Your Need" should reflect a desire for global treatment access, and "Recommended Action" should suggest adding it if missing.
+- INSTANT COVER RULE (CRITICAL):
+  If instant_cover is true in the policy data, then:
+  1. The "Waiting Periods" comparison row status MUST be "green"
+  2. The your_policy text MUST mention that Instant Cover reduces PED to ~30 days
+  3. The recommended_action MUST say "No action needed — Instant Cover is already mitigating your PED waiting period."
+  4. Do NOT generate any recommendation titled "Review Waiting Periods"
+  5. Instead, add a tertiary recommendation titled "Instant Cover Is Protecting You" with a description like:
+     "Your Instant Cover add-on has reduced the PED waiting period to ~30 days for [conditions]. This is a key benefit — ensure it's renewed every year."
 - recommendations: 2–4 items ordered by priority
 
 

@@ -60,8 +60,9 @@ def calculate_health_score(extracted: dict, user_prefs: dict) -> tuple:
     # 5. Restoration
     score += config['restoration']['present'] if extracted.get('restoration_present') else config['restoration']['missing']
 
-    # 6. PED Waiting Period
-    ped = (extracted.get('waiting_periods') or {}).get('ped_months', 48)
+    # 6. PED Waiting Period — use ped_effective_months (accounts for Instant Cover / portability)
+    ped_raw = (extracted.get('waiting_periods') or {}).get('ped_months', 48)
+    ped = extracted.get('ped_effective_months', ped_raw)  # prefer effective if available
     wp_cfg = config['ped_waiting']
     if ped <= 24:
         score += wp_cfg['months_24']

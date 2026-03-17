@@ -91,7 +91,8 @@ class HealthPolicyExtractor:
             regex_waiting_raw = extract_waiting_periods(combined_waiting)
 
         # ICICI JumpStart override
-        if insurer == "icici_lombard" and "jumpstart" in text.lower():
+        icici_jumpstart = insurer == "icici_lombard" and "jumpstart" in text.lower()
+        if icici_jumpstart:
             regex_waiting_raw["ped_months"] = 1  # 30 days ~= 1 month
 
         # Room rent
@@ -193,6 +194,27 @@ class HealthPolicyExtractor:
 
         if any(regex_waiting_raw.values()):
             extraction_flags.append("waiting_periods_regex_used")
+
+        # --- Instant Cover reconciliation ---
+        instant_cover = bool(extracted.get("instant_cover", False)) or icici_jumpstart
+        instant_cover_conditions = extracted.get("instant_cover_conditions") or []
+        if not isinstance(instant_cover_conditions, list):
+            instant_cover_conditions = []
+
+        # Determine EFFECTIVE PED waiting period
+        if instant_cover:
+            ped_effective_months = 1   # ~30 days
+        elif ped_months == 0:
+            ped_effective_months = 0   # portability continuity wiped it out
+        else:
+            ped_effective_months = ped_months  # standard contractual term
+
+        extracted["instant_cover"] = instant_cover
+        extracted["instant_cover_conditions"] = instant_cover_conditions
+        extracted["ped_effective_months"] = ped_effective_months
+
+        if instant_cover:
+            extraction_flags.append("instant_cover_detected")
 
         # ── [6] Premium annualization ───────────────────────────────────────
         if extracted.get("premium"):
