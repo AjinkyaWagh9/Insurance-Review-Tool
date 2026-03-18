@@ -6,6 +6,7 @@ interface TermProtectionState {
   // Stage 1
   age: number;
   customerName: string;
+  phone: string;
   annualIncome: number;
   dependents: number;
   existingSumAssured: number;
@@ -55,6 +56,7 @@ interface TermProtectionActions {
   addEngagement: (points: number) => void;
   adjustIdealCover: (amount: number) => void;
   setCustomerName: (name: string) => void;
+  setPhone: (phone: string) => void;
   setDependents: (count: number) => void;
   setLoanAmount: (amount: number) => void;
   setMonthlyExpenses: (amount: number) => void;
@@ -95,6 +97,7 @@ type TermProtectionContextType = TermProtectionState & TermProtectionActions & {
 const defaultState: TermProtectionState = {
   age: 0,
   customerName: "",
+  phone: "",
   annualIncome: 0,
   dependents: 0,
   existingSumAssured: 0,
@@ -188,6 +191,10 @@ export const TermProtectionProvider: React.FC<{ children: React.ReactNode }> = (
 
   const setCustomerName = useCallback((name: string) => {
     setState(prev => ({ ...prev, customerName: name }));
+  }, []);
+
+  const setPhone = useCallback((phone: string) => {
+    setState(prev => ({ ...prev, phone }));
   }, []);
 
   const setDependents = useCallback((count: number) => {
@@ -323,7 +330,7 @@ export const TermProtectionProvider: React.FC<{ children: React.ReactNode }> = (
       activeIdeal,
       activeShortfall,
       setBasicInfo, addExposure, addEngagement, adjustIdealCover,
-      setCustomerName, setDependents,
+      setCustomerName, setPhone, setDependents,
       setLoanAmount, setMonthlyExpenses, setRetirementAge, setFamilySecureYears,
       uploadPolicy, resetState,
       setIdealCoverEstimated, setShortfallEstimated, setIdealCoverVerified, setShortfallVerified,

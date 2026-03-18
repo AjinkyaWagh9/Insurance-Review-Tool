@@ -49,6 +49,7 @@ const TermBasicInfoStep = ({ onSubmit }: Props) => {
     setPolicyScore,
     setScoreReasons,
     setCustomerName,
+    setPhone: setContextPhone,
     setDependents: setContextDependents,
     setBasicInfo,
     setExistingSumAssured,
@@ -74,6 +75,7 @@ const TermBasicInfoStep = ({ onSubmit }: Props) => {
     // not a stale idealCoverVerified left over from a previous policy upload.
     setMode("estimate");
     setCustomerName(name.trim());
+    setContextPhone(phone.trim());
     setContextDependents(parseInt(dependents));
     setBasicInfo(parseInt(age), income, parseInt(dependents), existingSA);
     setExistingSumAssured(existingSA);

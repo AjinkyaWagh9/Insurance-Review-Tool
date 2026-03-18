@@ -12,6 +12,7 @@ export interface MotorAddOns {
 
 export interface MotorReportPayload {
     customer_name: string;
+    phone?: string;
     to_email?: string;
     score: number;
     score_reasons: string[];

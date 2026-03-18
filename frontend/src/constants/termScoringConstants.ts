@@ -28,6 +28,7 @@
  * │         │ dependent_buffer, setBasicInfo now called from Step 1  │
  * │  1.5    │ Added reportUrl, reportFilename to state for S3 PDF     │
  * │         │ storage flow (Part C rulebook)                          │
+ * │  1.6    │ Added phone to state for S3 PDF filename                │
  * └─────────┴────────────────────────────────────────────────────────┘
  */
 
@@ -37,7 +38,7 @@
 // Format: "MAJOR.MINOR"
 //   MINOR bump → new optional fields added (old data still usable, just missing new fields)
 //   MAJOR bump → breaking changes to existing fields or calculation logic
-export const STORAGE_VERSION = "1.5";
+export const STORAGE_VERSION = "1.6";
 
 // ─── SCORING CONSTANTS ──────────────────────────────────────────────────────
 // These MUST match backend: app/core/rules/term_rules.py → TERM_SCORING_CONFIG

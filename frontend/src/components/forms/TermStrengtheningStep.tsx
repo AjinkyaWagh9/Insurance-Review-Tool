@@ -76,7 +76,7 @@ interface Props {
 
 const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
   const {
-    age, annualIncome, dependents, customerName,
+    age, annualIncome, dependents, customerName, phone,
     activeIdeal, existingSumAssured, activeShortfall,
     exposureScore, addExposure, addEngagement,
     setLoanAmount, setRetirementAge, setFamilySecureYears, setMonthlyExpenses,
@@ -151,6 +151,7 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
       }
       pdfPayload = {
         customer_name: customerName,
+        phone: phone || "",
         score: updatedScore.score,
         ideal_cover: updatedScore.ideal_cover,
         your_cover: existingSumAssured,
@@ -188,6 +189,7 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
       }
       pdfPayload = {
         customer_name: customerName,
+        phone: phone || "",
         score: fallbackScore,
         ideal_cover: fallbackIdeal,
         your_cover: existingSumAssured,

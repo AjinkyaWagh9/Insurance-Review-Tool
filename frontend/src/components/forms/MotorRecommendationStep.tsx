@@ -73,6 +73,7 @@ const MotorRecommendationStep = () => {
   // Payload builder for reports
   const buildMotorPayload = (): MotorReportPayload => ({
     customer_name: userName || "Valued Customer",
+    phone: phone || "",
     score: protectionScore,
     score_reasons: [
       ...(isUnderInsured ? [`Significant Under-insurance of ${formatCurrency(Math.abs(idvGap))} detected`] : []),

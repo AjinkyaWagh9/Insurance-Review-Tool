@@ -112,6 +112,7 @@ export async function sendTermReport(data: SendReportRequest): Promise<{ success
 }
 export interface PdfReportRequest {
     customer_name: string;
+    phone?: string;
     score: number;
     ideal_cover: number;
     your_cover: number;

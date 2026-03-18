@@ -2,6 +2,7 @@ const BASE_URL = import.meta.env.VITE_API_URL;
 
 export interface HealthPdfRequest {
     customer_name: string;
+    phone?: string;
     insurer_name: string;
     plan_name: string;
     policy_number: string;

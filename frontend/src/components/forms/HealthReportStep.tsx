@@ -140,6 +140,7 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
       healthPdfFiredRef.current = true;
       generateAndUploadHealthPdf({
         customer_name: userName || "",
+        phone: userPhone || "",
         insurer_name: extractedPolicy.insurer_name,
         plan_name: extractedPolicy.plan_name,
         policy_number: extractedPolicy.policy_number || "",
