@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/motor", tags=["motor-pdf"])
 
 class MotorPdfRequest(BaseModel):
     customer_name: str = ""
+    phone: str = ""
     score: int = 0
     score_reasons: List[str] = []
     insurer_name: Optional[str] = None
@@ -27,6 +28,8 @@ class MotorPdfRequest(BaseModel):
     add_ons: Dict[str, bool] = {}
 
 
+# DEPRECATED — replaced by /api/s3/generate-and-upload-motor in s3.py
+# Kept for rollback safety until UAT sign-off
 @router.post("/generate-pdf")
 async def generate_motor_pdf(payload: MotorPdfRequest):
     import os

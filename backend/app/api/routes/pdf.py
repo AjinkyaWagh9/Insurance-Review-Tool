@@ -12,6 +12,7 @@ router = APIRouter(prefix="/api/term", tags=["pdf"])
 class PdfReportRequest(BaseModel):
     # Identical shape to SendReportRequest — same data, different output
     customer_name: str = ""
+    phone: str = ""
     score: int = 0
     ideal_cover: float = 0
     your_cover: float = 0
@@ -26,6 +27,8 @@ class PdfReportRequest(BaseModel):
     score_reasons: List[str] = []
 
 
+# DEPRECATED — replaced by /api/s3/generate-and-upload in s3.py
+# Kept for rollback safety until UAT sign-off
 @router.post("/generate-pdf")
 async def generate_pdf(payload: PdfReportRequest):
     """

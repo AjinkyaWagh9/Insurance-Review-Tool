@@ -25,7 +25,11 @@ app = FastAPI(title="Insurance Review Tool API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        os.getenv("FRONTEND_URL", "http://localhost:8080"),
+        "http://localhost:5173",
+        "http://localhost:8080",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,6 +44,9 @@ from app.api.routes.health_pdf import router as health_pdf_router
 from app.api.routes.health_email import router as health_email_router
 from app.api.routes.motor_email import router as motor_email_router
 from app.api.routes.motor_pdf import router as motor_pdf_router
+from app.api.routes.s3 import router as s3_router
+from app.api.routes.whatsapp import router as whatsapp_router
+from app.api.routes.zepto_email import router as zepto_email_router
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(term_router, prefix="/api/term", tags=["term"])
@@ -49,6 +56,9 @@ app.include_router(health_pdf_router)
 app.include_router(health_email_router)
 app.include_router(motor_email_router)
 app.include_router(motor_pdf_router)
+app.include_router(s3_router)
+app.include_router(whatsapp_router)
+app.include_router(zepto_email_router)
 
 # Restore environment to avoid side effects (e.g. SSL conflicts)
 if platform.system() == "Darwin":
@@ -63,4 +73,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

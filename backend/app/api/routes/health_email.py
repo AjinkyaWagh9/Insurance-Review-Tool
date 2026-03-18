@@ -1,17 +1,23 @@
-import resend
 import os
-import base64
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from weasyprint import HTML
 from app.templates.health_report_email import build_health_report_html
 
 router = APIRouter(prefix="/api/health", tags=["health-email"])
 
-resend.api_key = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+SMTP_HOST = "smtp.zeptomail.in"
+SMTP_PORT = 587
+SMTP_USER = os.getenv("ZEPTO_SMTP_USER", "emailappsmtp.1ce934d7c87681af")
+SMTP_PASS = os.getenv("ZEPTO_SMTP_PASS", "2MLMNiYd7RcW")
+FROM_EMAIL = os.getenv("ZEPTO_FROM_EMAIL", "noreply@bajajcapital.com")
 
 
 class HealthEmailRequest(BaseModel):
@@ -45,41 +51,51 @@ class HealthEmailRequest(BaseModel):
 
 @router.post("/send-report")
 async def send_health_report(payload: HealthEmailRequest):
-    if not resend.api_key:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": "RESEND_API_KEY not configured"}
-        )
-
     try:
-        data = payload.dict()
-        html_content = build_health_report_html(data)
+        html_content = build_health_report_html(payload.dict())
 
-        # Attempt PDF generation — fallback to email-only if it fails
-        pdf_attachment = None
+        msg = MIMEMultipart()
+        msg["From"] = FROM_EMAIL
+        msg["To"] = payload.to_email
+        msg["Subject"] = f"Your Health Insurance Audit — {payload.customer_name or 'Policy Summary'}"
+
+        body = f"""Dear {payload.customer_name or 'Customer'},
+
+Thank you for submitting your insurance policy for review.
+
+Your Health Insurance Audit Report is now ready and attached below.
+
+This report highlights:
+• Your current coverage summary
+• Any hidden gaps in your policy
+• Suggestions to improve your protection
+
+If you would like a quick explanation or have any questions, please feel free to connect with your advisor.
+
+Warm regards,
+BajajCapital Insurance Broking Ltd"""
+
+        msg.attach(MIMEText(body, "plain"))
+
         try:
             pdf_bytes = HTML(string=html_content).write_pdf()
-            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(pdf_bytes)
+            encoders.encode_base64(part)
             filename = f"Health_Audit_{payload.customer_name or 'Report'}.pdf".replace(" ", "_")
-            pdf_attachment = [{"filename": filename, "content": pdf_b64}]
+            part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+            msg.attach(part)
         except Exception as pdf_err:
-            print(f"PDF generation failed (sending email without attachment): {pdf_err}")
+            print(f"Health PDF generation failed (sending without attachment): {pdf_err}")
 
-        email_payload = {
-            "from": FROM_EMAIL,
-            "to": payload.to_email,
-            "subject": f"Your Health Insurance Audit — {payload.customer_name or 'Policy Summary'}",
-            "html": html_content,
-        }
-        if pdf_attachment:
-            email_payload["attachments"] = pdf_attachment
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.send_message(msg)
+        server.quit()
 
-        resend.Emails.send(email_payload)
         return {"success": True}
 
     except Exception as e:
-        print(f"Email send error: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
+        print(f"Health email send error: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})

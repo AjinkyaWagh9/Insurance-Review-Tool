@@ -11,6 +11,7 @@ router = APIRouter(prefix="/api/health", tags=["health-pdf"])
 
 class HealthPdfRequest(BaseModel):
     customer_name: str = ""
+    phone: str = ""
     insurer_name: str = ""
     plan_name: str = ""
     policy_number: str = ""
@@ -37,6 +38,8 @@ class HealthPdfRequest(BaseModel):
     recommendations: List[Dict[str, Any]] = []
 
 
+# DEPRECATED — replaced by /api/s3/generate-and-upload-health in s3.py
+# Kept for rollback safety until UAT sign-off
 @router.post("/generate-pdf")
 async def generate_health_pdf(payload: HealthPdfRequest):
     """
