@@ -37,14 +37,49 @@ export const captureLead = async (leadData: LeadPayload) => {
     }
 };
 
+export const uploadInsuranceFile = async (mobile: string, file: File) => {
+    try {
+        const formData = new FormData();
+        formData.append("mobile", mobile);
+        formData.append("file", file);
+
+        const response = await fetch("http://localhost:8087/bclcomapp/api/insuranceuploadfile", {
+            method: "POST",
+            body: formData,
+        });
+
+        const data = await response.json();
+        if (data.success && data.url) {
+            sessionStorage.setItem("mobile", mobile);
+            sessionStorage.setItem("policyUrl", data.url);
+        }
+        return data;
+    } catch (error) {
+        console.error("Insurance file upload failed:", error);
+        return { success: false, message: String(error) };
+    }
+};
+
 export const createCRMLead = async (payload: CRMLeadPayload) => {
     try {
+        const storedMobile = sessionStorage.getItem("mobile");
+        const policyUrl = sessionStorage.getItem("policyUrl");
+
+        const enrichedPayload: CRMLeadPayload = {
+            ...payload,
+            mobile: payload.mobile || storedMobile || "",
+            remarks: {
+                ...payload.remarks,
+                policy_url: payload.remarks.policy_url || policyUrl || "",
+            }
+        };
+
         const response = await fetch("http://localhost:8087/bclcomapp/api/insuranceCRMLead", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(enrichedPayload),
         });
         return await response.json();
     } catch (error) {
@@ -52,4 +87,36 @@ export const createCRMLead = async (payload: CRMLeadPayload) => {
         return { status: "error", message: String(error) };
     }
 };
+export interface InsuranceReviewLogPayload {
+    mobile: string;
+    upload_file: string;
+    report_file: string;
+    api_response: any;
+}
 
+export const logInsuranceReview = async (apiResponse: any) => {
+    try {
+        const mobile = sessionStorage.getItem("mobile") || "";
+        const upload_file = sessionStorage.getItem("policyUrl") || "";
+        const report_file = "https://s3-url/report.pdf";
+
+        const logPayload: InsuranceReviewLogPayload = {
+            mobile,
+            upload_file,
+            report_file,
+            api_response: apiResponse
+        };
+
+        const response = await fetch("http://localhost:8087/bclcomapp/api/insurance-review-logs", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(logPayload),
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("Insurance review logging failed:", error);
+        return { success: false, message: String(error) };
+    }
+};

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { sendTermReport, downloadTermPdf } from "@/services/termApi";
+import { createCRMLead, logInsuranceReview } from "@/services/leadApi";
 import { getScoreMeta } from "@/utils/scoreMeta";
 
 function formatCurrency(val: number | undefined | null): string {
@@ -63,7 +64,7 @@ const TermRecommendationStep = () => {
     policyVerified, extractedPolicy, retirementAge, addEngagement,
     idealCoverBreakdown,
     customerName, scoreReasons, coverageStatus, insurerReliabilityScore,
-    reportUrl, reportFilename,
+    reportUrl, reportFilename, phone,
   } = useTermProtection();
 
   const [shareEmail, setShareEmail] = useState("");
@@ -178,6 +179,36 @@ const TermRecommendationStep = () => {
   }
 
   if (activeShortfall <= 0) ctaText = "Review My Plan";
+
+  // Trigger CRM Lead once report is ready
+  useEffect(() => {
+    if (reportUrl) {
+      const handleFlowEnd = async () => {
+        const crmResponse = await createCRMLead({
+          name: customerName || "Valued Customer",
+          mobile: phone || sharePhone || "", // We can try to get from context too
+          City: "",
+          Age: String(retirementAge - 30), // Placeholder if age not directly in context as a number
+          Product: "Term",
+          Campaign_Name: "Insurance Review Tool",
+          Utm_Source: "",
+          Utm_Medium: "",
+          Utm_Campaign: "",
+          remarks: {
+            report_url: reportUrl,
+            status: "Term Analysis Complete",
+            sum_assured: formatCurrency(existingSumAssured),
+            insurer: extractedPolicy?.insurer_name || ""
+          }
+        });
+
+        // Call logging API with CRM response
+        await logInsuranceReview(crmResponse);
+      };
+
+      handleFlowEnd();
+    }
+  }, [reportUrl, customerName, phone, sharePhone, existingSumAssured, extractedPolicy, retirementAge]);
 
   const showReinforcement = engagementScore >= 25 && activeShortfall > 0;
 

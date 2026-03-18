@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Upload, FileText, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import CityCombobox from "./CityCombobox";
-import { captureLead } from "@/services/leadApi";
+import { captureLead, uploadInsuranceFile } from "@/services/leadApi";
 
 interface Props {
   onSubmit: (name: string, phone: string, city: string, marketValue: number, policyFile: File | null) => void;
@@ -42,6 +42,10 @@ const MotorBasicInfoStep = ({ onSubmit }: Props) => {
       phone: phone.trim(),
       tool_type: "motor"
     });
+
+    if (policyFile) {
+      uploadInsuranceFile(phone.trim(), policyFile);
+    }
 
     onSubmit(name.trim(), phone.trim(), city, parseInt(marketValue), policyFile);
   };

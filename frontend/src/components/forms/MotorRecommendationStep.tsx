@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { sendMotorReport, downloadMotorPdf, generateAndUploadMotorPdf, MotorReportPayload } from "@/services/motorApi";
+import { createCRMLead, logInsuranceReview } from "@/services/leadApi";
 import { Loader2, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -114,8 +115,39 @@ const MotorRecommendationStep = () => {
         })
         .catch(err => console.error("Motor PDF background generation failed:", err));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctxExtracted]);
+
+  // Trigger CRM Lead once report is ready
+  useEffect(() => {
+    if (reportUrl) {
+      const handleFlowEnd = async () => {
+        const city = (extractedPolicy as any)?.user_city || "";
+        const crmResponse = await createCRMLead({
+          name: userName || "Valued Customer",
+          mobile: phone || "",
+          City: city,
+          Age: "",
+          Product: "Motor",
+          Campaign_Name: "Insurance Review Tool",
+          Utm_Source: "",
+          Utm_Medium: "",
+          Utm_Campaign: "",
+          remarks: {
+            report_url: reportUrl,
+            status: "Motor Analysis Complete",
+            vehicle: `${extractedPolicy?.vehicle_make} ${extractedPolicy?.vehicle_model}`,
+            insurer: extractedPolicy?.insurer_name || ""
+          }
+        });
+
+        // Call logging API with CRM response
+        await logInsuranceReview(crmResponse);
+      };
+
+      handleFlowEnd();
+    }
+  }, [reportUrl, userName, phone, extractedPolicy]);
 
   const handleSendWhatsApp = async () => {
     if (!reportUrl) {

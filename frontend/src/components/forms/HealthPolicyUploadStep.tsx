@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { captureLead } from "@/services/leadApi";
+import { captureLead, uploadInsuranceFile } from "@/services/leadApi";
 import { motion } from "framer-motion";
 import { Upload, FileText, Shield, User, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,9 @@ const HealthPolicyUploadStep = ({ onContinue }: Props) => {
       phone: phone.trim(),
       tool_type: "health"
     });
+
+    // Upload to local insurance API
+    uploadInsuranceFile(phone.trim(), selectedFile);
 
     uploadPolicy(selectedFile, name.trim(), phone.trim());
     onContinue(name.trim(), phone.trim());

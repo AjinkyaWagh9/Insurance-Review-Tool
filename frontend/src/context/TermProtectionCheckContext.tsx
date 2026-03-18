@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import { uploadTermPolicy, ExtractedPolicy, ScoreResponse } from "@/services/termApi";
+import { uploadInsuranceFile } from "@/services/leadApi";
 import { STORAGE_VERSION } from "@/constants/termScoringConstants";
 
 interface TermProtectionState {
@@ -276,6 +277,9 @@ export const TermProtectionProvider: React.FC<{ children: React.ReactNode }> = (
 
     try {
       const s = stateRef.current;
+      // Upload to local insurance API
+      uploadInsuranceFile(s.phone, file);
+
       const result = await uploadTermPolicy(file, {
         customer_name: s.customerName,
         age: s.age,
