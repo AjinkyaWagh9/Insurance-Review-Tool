@@ -13,14 +13,10 @@ build/
 .pytest_cache/
 .ruff_cache/
 
-# Virtual environments
-venv/
-env/
-.venv/
-.env/
-
 # Environment / Secrets
 .env
+.env.*
+!.env.example
 *.local
 
 # Node / Frontend
