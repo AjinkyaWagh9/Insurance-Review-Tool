@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { sendHealthReport, downloadHealthPdf, generateAndUploadHealthPdf } from "@/services/healthApi";
+import { createCRMLead, logInsuranceReview } from "@/services/leadApi";
 import HealthProcessingStep from "./HealthProcessingStep";
 import AnalysisCheckStep from "./AnalysisCheckStep";
 
@@ -170,6 +171,36 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
       }).catch(err => console.error("Health PDF background generation failed:", err));
     }
   }, [extractedPolicy, userName]);
+
+  // Trigger CRM Lead once report is ready
+  useEffect(() => {
+    if (reportUrl) {
+      const handleFlowEnd = async () => {
+        const crmResponse = await createCRMLead({
+          name: userName || "",
+          mobile: userPhone || "",
+          City: preferences.city,
+          Age: String(preferences.age),
+          Product: "Health",
+          Campaign_Name: "Insurance Review Tool",
+          Utm_Source: "",
+          Utm_Medium: "",
+          Utm_Campaign: "",
+          remarks: {
+            report_url: reportUrl,
+            status: "Health Analysis Complete",
+            plan: extractedPolicy?.plan_name || "",
+            insurer: extractedPolicy?.insurer_name || ""
+          }
+        });
+
+        // Call logging API with CRM response
+        await logInsuranceReview(crmResponse);
+      };
+
+      handleFlowEnd();
+    }
+  }, [reportUrl, userName, userPhone, preferences.city, preferences.age, extractedPolicy]);
 
   // Loading state
   if (mode !== "report_ready") {
