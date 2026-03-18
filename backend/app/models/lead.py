@@ -8,6 +8,7 @@ class LeadBase(SQLModel):
     email: Optional[str] = None
     tool_type: str  # 'health', 'motor', 'term'
     status: str = "new"
+    report_url: Optional[str] = None
 
 class Lead(LeadBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
