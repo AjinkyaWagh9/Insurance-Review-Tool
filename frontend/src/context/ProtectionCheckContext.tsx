@@ -213,7 +213,7 @@ export const ProtectionCheckProvider: React.FC<{ children: React.ReactNode }> = 
       formData.append('family_history', String(preferences.familyHistory === true));
       formData.append('parents', String(preferences.parents === true));
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = import.meta.env.VITE_API_URL;
       const response = await fetch(
         `${apiUrl}/api/v1/analyze`,
         { method: 'POST', body: formData }

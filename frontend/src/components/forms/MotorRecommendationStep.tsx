@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Phone, Download, AlertTriangle, CheckCircle2,
@@ -10,7 +10,7 @@ import { useProtectionCheck } from "@/context/ProtectionCheckContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { sendMotorReport, downloadMotorPdf, MotorReportPayload } from "@/services/motorApi";
+import { sendMotorReport, downloadMotorPdf, generateAndUploadMotorPdf, MotorReportPayload } from "@/services/motorApi";
 import { Loader2, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -33,7 +33,7 @@ const addonDetails: Record<string, { icon: React.ReactNode; desc: string }> = {
 const MotorRecommendationStep = () => {
   const {
     idealIdv, currentIdv, idvGap, exposureScore, engagementScore,
-    policyScore, recommendedAddons, extractedPolicy: ctxExtracted, addEngagement,
+    policyScore, recommendedAddons, extractedPolicy: ctxExtracted, addEngagement, phone,
   } = useMotorProtection();
 
   const { userName } = useProtectionCheck();
@@ -42,6 +42,9 @@ const MotorRecommendationStep = () => {
   const [showEmailTab, setShowEmailTab] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  const motorPdfFiredRef = useRef(false);
 
   const extractedPolicy = ctxExtracted as any;
 
@@ -100,21 +103,76 @@ const MotorRecommendationStep = () => {
     },
   });
 
+  // Background PDF generation — fires once after Motor AI analysis completes
+  useEffect(() => {
+    if (ctxExtracted && !motorPdfFiredRef.current) {
+      motorPdfFiredRef.current = true;
+      generateAndUploadMotorPdf(buildMotorPayload())
+        .then(result => {
+          if (result.success && result.url) setReportUrl(result.url);
+        })
+        .catch(err => console.error("Motor PDF background generation failed:", err));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxExtracted]);
+
+  const handleSendWhatsApp = async () => {
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
+    }
+    setWhatsappLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/send-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mobile: phone || "",
+          file_url: reportUrl,
+          name: userName || "",
+          filename: "Motor_Insurance_Report",
+        }),
+      });
+      if (res.ok) {
+        toast.success("Report sent via WhatsApp");
+        addEngagement(5);
+      } else {
+        toast.error("Failed to send WhatsApp message. Please try again.");
+      }
+    } catch (err) {
+      toast.error("Network error. Please check your connection.");
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!shareEmail) {
       toast.error("Please enter a valid email address");
       return;
     }
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
+    }
     setEmailLoading(true);
     try {
-      const result = await sendMotorReport(shareEmail, buildMotorPayload());
-      if (result.success) {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/email/send-zepto-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to_email: shareEmail,
+          customer_name: userName || "",
+          pdf_url: reportUrl,
+        }),
+      });
+      if (res.ok) {
         toast.success(`Audit report sent to ${shareEmail}`);
         setShareEmail("");
         setShowEmailTab(false);
         addEngagement(10);
       } else {
-        toast.error(result.error || "Failed to send email");
+        toast.error("Failed to send email");
       }
     } catch (err) {
       console.error("Email send failed:", err);
@@ -124,18 +182,19 @@ const MotorRecommendationStep = () => {
     }
   };
 
-  const handleDownloadPdf = async () => {
-    setPdfLoading(true);
-    try {
-      await downloadMotorPdf(buildMotorPayload());
-      toast.success("Audit report PDF downloaded");
-      addEngagement(5);
-    } catch (err) {
-      console.error("PDF download failed:", err);
-      toast.error("Failed to generate PDF report");
-    } finally {
-      setPdfLoading(false);
+  const handleDownloadPdf = () => {
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
     }
+    const a = document.createElement("a");
+    a.href = reportUrl;
+    a.download = `Motor_Insurance_Report_${userName || "Report"}.pdf`;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    addEngagement(5);
   };
 
   return (
@@ -375,24 +434,21 @@ const MotorRecommendationStep = () => {
           >
             <Mail className="h-4 w-4" /> Email
           </Button>
-          <Button variant="outline" className="flex-1 h-11 gap-1.5 border-score-green text-score-green hover:bg-score-green/10" onClick={() => {
-            const message = encodeURIComponent(`Motor Protection Summary! IDV: ${coveragePercent}% of ideal. ${idvGap > 0 ? `Gap: ${formatCurrency(idvGap)}` : "Well covered!"} Exposure: ${exposureScore >= 20 ? "High" : exposureScore >= 10 ? "Moderate" : "Low"}`);
-            window.open(`https://wa.me/?text=${message}`, "_blank");
-          }}>
-            <MessageCircle className="h-4 w-4" /> WhatsApp
+          <Button
+            variant="outline"
+            className="flex-1 h-11 gap-1.5 border-score-green text-score-green hover:bg-score-green/10"
+            onClick={handleSendWhatsApp}
+            disabled={whatsappLoading}
+          >
+            {whatsappLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+            {whatsappLoading ? "Sending..." : "WhatsApp"}
           </Button>
           <Button
             variant="outline"
             className="flex-1 h-11 gap-1.5 border-score-red text-score-red hover:bg-score-red hover:text-white"
             onClick={handleDownloadPdf}
-            disabled={pdfLoading}
           >
-            {pdfLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            PDF
+            <Download className="h-4 w-4" /> PDF
           </Button>
         </div>
 

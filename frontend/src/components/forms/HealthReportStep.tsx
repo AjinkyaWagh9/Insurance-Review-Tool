@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, CheckCircle2, AlertTriangle, ChevronDown, Loader2,
@@ -9,7 +9,7 @@ import { useProtectionCheck } from "@/context/ProtectionCheckContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { sendHealthReport, downloadHealthPdf } from "@/services/healthApi";
+import { sendHealthReport, downloadHealthPdf, generateAndUploadHealthPdf } from "@/services/healthApi";
 import HealthProcessingStep from "./HealthProcessingStep";
 import AnalysisCheckStep from "./AnalysisCheckStep";
 
@@ -111,7 +111,7 @@ const ComparisonRowItem = ({ row, isExpanded, onToggle }: {
 const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
   const {
     policyProcessed, preferencesCompleted, extractedPolicy, extractionFailed,
-    preferences, mode, computeReport, updateExtractedData, setVerified, isVerified, userName,
+    preferences, mode, computeReport, updateExtractedData, setVerified, isVerified, userName, userPhone,
   } = useProtectionCheck();
 
   const [computed, setComputed] = useState(false);
@@ -122,6 +122,9 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  const healthPdfFiredRef = useRef(false);
 
   // Fire the backend API call when both policy and preferences are ready
   useEffect(() => {
@@ -130,6 +133,42 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
       setComputed(true);
     }
   }, [preferencesCompleted, computed, computeReport]);
+
+  // Background PDF generation — fires once after AI analysis completes
+  useEffect(() => {
+    if (extractedPolicy && !healthPdfFiredRef.current) {
+      healthPdfFiredRef.current = true;
+      generateAndUploadHealthPdf({
+        customer_name: userName || "",
+        insurer_name: extractedPolicy.insurer_name,
+        plan_name: extractedPolicy.plan_name,
+        policy_number: extractedPolicy.policy_number || "",
+        sum_insured: extractedPolicy.sum_insured,
+        premium: extractedPolicy.premium || 0,
+        policy_tenure: extractedPolicy.policy_tenure || "",
+        is_family_floater: extractedPolicy.is_family_floater ?? false,
+        members_covered: extractedPolicy.members_covered ?? 1,
+        room_rent_limit: extractedPolicy.room_rent_limit,
+        copay_percentage: extractedPolicy.copay_percentage,
+        deductible: extractedPolicy.deductible,
+        sub_limits: extractedPolicy.sub_limits,
+        waiting_periods: extractedPolicy.waiting_periods,
+        restoration_present: extractedPolicy.restoration_present,
+        restoration_type: extractedPolicy.restoration_type,
+        ncb_percentage: extractedPolicy.ncb_percentage,
+        ncb_max_percentage: extractedPolicy.ncb_max_percentage,
+        zone_of_cover: extractedPolicy.zone_of_cover,
+        has_zonal_copay: extractedPolicy.has_zonal_copay,
+        global_health_coverage: extractedPolicy.global_health_coverage,
+        score: extractedPolicy.policy_score,
+        ideal_cover: extractedPolicy.ideal_cover,
+        comparison_rows: extractedPolicy.comparison_rows,
+        recommendations: extractedPolicy.recommendations,
+      }).then(result => {
+        if (result.success && result.url) setReportUrl(result.url);
+      }).catch(err => console.error("Health PDF background generation failed:", err));
+    }
+  }, [extractedPolicy, userName]);
 
   // Loading state
   if (mode !== "report_ready") {
@@ -220,83 +259,68 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
   const scoreColor = score >= 75 ? "text-emerald-400" : score >= 50 ? "text-amber-400" : "text-red-400";
   const ringColor = score >= 75 ? "border-emerald-400" : score >= 50 ? "border-amber-400" : "border-red-400";
 
-  const handleDownloadPdf = async () => {
-    if (!extractedPolicy) return;
-    setPdfLoading(true);
+  const handleDownloadPdf = () => {
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = reportUrl;
+    a.download = `Health_Insurance_Report_${userName || "Report"}.pdf`;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!reportUrl) { toast.error("Report is still being generated. Please try again in a moment."); return; }
+    setWhatsappLoading(true);
     try {
-      await downloadHealthPdf({
-        customer_name: userName || "",
-        insurer_name: extractedPolicy.insurer_name || "",
-        plan_name: extractedPolicy.plan_name || "",
-        policy_number: extractedPolicy.policy_number || "",
-        sum_insured: extractedPolicy.sum_insured || 0,
-        premium: extractedPolicy.premium || 0,
-        policy_tenure: extractedPolicy.policy_tenure || "",
-        is_family_floater: extractedPolicy.is_family_floater || false,
-        members_covered: extractedPolicy.members_covered || 1,
-        room_rent_limit: extractedPolicy.room_rent_limit || "",
-        copay_percentage: extractedPolicy.copay_percentage || 0,
-        deductible: extractedPolicy.deductible || 0,
-        sub_limits: extractedPolicy.sub_limits || [],
-        waiting_periods: (extractedPolicy.waiting_periods as any) || { initial_days: 0, ped_months: 0, specific_months: 0 },
-        restoration_present: extractedPolicy.restoration_present || false,
-        restoration_type: extractedPolicy.restoration_type || "",
-        ncb_percentage: extractedPolicy.ncb_percentage || 0,
-        ncb_max_percentage: extractedPolicy.ncb_max_percentage || 0,
-        zone_of_cover: extractedPolicy.zone_of_cover || "",
-        has_zonal_copay: extractedPolicy.has_zonal_copay || false,
-        global_health_coverage: extractedPolicy.global_health_coverage || false,
-        score: score || 0,
-        ideal_cover: extractedPolicy.ideal_cover || 0,
-        comparison_rows: comparisonRows || [],
-        recommendations: extractedPolicy.recommendations || [],
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/send-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mobile: userPhone || "",
+          file_url: reportUrl,
+          name: userName || "",
+          filename: "Health_Insurance_Report",
+        }),
       });
-      toast.success("PDF downloaded successfully");
+      if (res.ok) {
+        toast.success("Report sent via WhatsApp");
+      } else {
+        toast.error("Failed to send WhatsApp message. Please try again.");
+      }
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to generate PDF");
+      toast.error("Network error. Please check your connection.");
     } finally {
-      setPdfLoading(false);
+      setWhatsappLoading(false);
     }
   };
 
   const handleSendEmail = async () => {
-    if (!extractedPolicy) return;
     if (!shareEmail) { toast.error("Please enter an email address"); return; }
+    if (!reportUrl) { toast.error("Report is still being generated. Please try again in a moment."); return; }
 
     setEmailLoading(true);
     try {
-      await sendHealthReport({
-        to_email: shareEmail,
-        customer_name: userName || "",
-        insurer_name: extractedPolicy.insurer_name || "",
-        plan_name: extractedPolicy.plan_name || "",
-        policy_number: extractedPolicy.policy_number || "",
-        sum_insured: extractedPolicy.sum_insured || 0,
-        premium: extractedPolicy.premium || 0,
-        policy_tenure: extractedPolicy.policy_tenure || "",
-        is_family_floater: extractedPolicy.is_family_floater || false,
-        members_covered: extractedPolicy.members_covered || 1,
-        room_rent_limit: extractedPolicy.room_rent_limit || "",
-        copay_percentage: extractedPolicy.copay_percentage || 0,
-        deductible: extractedPolicy.deductible || 0,
-        sub_limits: extractedPolicy.sub_limits || [],
-        waiting_periods: (extractedPolicy.waiting_periods as any) || { initial_days: 0, ped_months: 0, specific_months: 0 },
-        restoration_present: extractedPolicy.restoration_present || false,
-        restoration_type: extractedPolicy.restoration_type || "",
-        ncb_percentage: extractedPolicy.ncb_percentage || 0,
-        ncb_max_percentage: extractedPolicy.ncb_max_percentage || 0,
-        zone_of_cover: extractedPolicy.zone_of_cover || "",
-        has_zonal_copay: extractedPolicy.has_zonal_copay || false,
-        global_health_coverage: extractedPolicy.global_health_coverage || false,
-        score: score || 0,
-        ideal_cover: extractedPolicy.ideal_cover || 0,
-        comparison_rows: comparisonRows || [],
-        recommendations: extractedPolicy.recommendations || [],
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/email/send-zepto-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to_email: shareEmail,
+          customer_name: userName || "",
+          pdf_url: reportUrl,
+        }),
       });
-      toast.success("Report sent to " + shareEmail);
-      setShowEmailTab(false);
-      setShareEmail("");
+      if (res.ok) {
+        toast.success("Report sent to " + shareEmail);
+        setShowEmailTab(false);
+        setShareEmail("");
+      } else {
+        toast.error("Failed to send email. Please try again.");
+      }
     } catch (err) {
       console.error(err);
       toast.error("Failed to send email");
@@ -515,21 +539,19 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
           </Button>
           <Button
             variant="outline"
-            className="flex-1 h-11 gap-1.5"
-            onClick={() => {
-              const msg = encodeURIComponent("Check out my Health Insurance Protection Report!");
-              window.open(`https://wa.me/?text=${msg}`, "_blank");
-            }}
+            className="flex-1 h-11 gap-1.5 border-score-green text-score-green hover:bg-score-green/10"
+            onClick={handleSendWhatsApp}
+            disabled={whatsappLoading}
           >
-            <MessageCircle className="h-4 w-4" /> WhatsApp
+            {whatsappLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+            {whatsappLoading ? "Sending..." : "WhatsApp"}
           </Button>
           <Button
             variant="outline"
             className="flex-1 h-11 gap-1.5 border-sky-500 text-sky-600 hover:bg-sky-500 hover:text-white"
             onClick={handleDownloadPdf}
-            disabled={pdfLoading}
           >
-            {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
+            <Download className="h-4 w-4" /> PDF
           </Button>
         </div>
 

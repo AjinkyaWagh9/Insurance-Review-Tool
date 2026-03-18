@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ExtractedMotorPolicyData {
   idv: number | null;
@@ -147,7 +146,7 @@ export const MotorProtectionProvider: React.FC<{ children: React.ReactNode }> = 
         formData.append("market_value", marketValue.toString());
       }
 
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const apiUrl = import.meta.env.VITE_API_URL;
       const response = await fetch(`${apiUrl}/api/v1/analyze`, {
         method: "POST",
         body: formData,

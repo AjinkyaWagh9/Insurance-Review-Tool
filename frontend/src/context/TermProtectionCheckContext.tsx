@@ -42,6 +42,10 @@ interface TermProtectionState {
   // Missing fields for scoring
   coverageStatus: string;
   insurerReliabilityScore: number;
+
+  // S3 PDF storage
+  reportUrl: string | null;
+  reportFilename: string | null;
 }
 
 interface TermProtectionActions {
@@ -70,6 +74,8 @@ interface TermProtectionActions {
   setMode: (mode: "estimate" | "verified") => void;
   setCoverageStatus: (status: string) => void;
   setInsurerReliabilityScore: (score: number) => void;
+  setIdealCoverBreakdown: (breakdown: TermProtectionState["idealCoverBreakdown"]) => void;
+  setReportUrl: (url: string, filename: string) => void;
 }
 
 type TermProtectionContextType = TermProtectionState & TermProtectionActions & {
@@ -112,6 +118,8 @@ const defaultState: TermProtectionState = {
   familySecureYears: 0,
   coverageStatus: "",
   insurerReliabilityScore: 0,
+  reportUrl: null,
+  reportFilename: null,
 };
 
 const TermProtectionContext = createContext<TermProtectionContextType | null>(null);
@@ -124,14 +132,11 @@ export const TermProtectionProvider: React.FC<{ children: React.ReactNode }> = (
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed._version === STORAGE_VERSION) {
-          return parsed;
+        if (!parsed || parsed._version !== STORAGE_VERSION) {
+          localStorage.removeItem(STORAGE_KEY);
+          return defaultState;
         }
-        console.info(
-          `[TermProtection] Storage version mismatch: stored="${parsed._version}", ` +
-          `current="${STORAGE_VERSION}". Clearing stale data and resetting to defaults.`
-        );
-        localStorage.removeItem(STORAGE_KEY);
+        return parsed;
       } catch (e) {
         console.error("[TermProtection] Failed to parse saved state. Resetting.", e);
         localStorage.removeItem(STORAGE_KEY);
@@ -227,14 +232,37 @@ export const TermProtectionProvider: React.FC<{ children: React.ReactNode }> = (
   const setExistingSumAssured = useCallback((amount: number) =>
     setState(prev => ({ ...prev, existingSumAssured: amount })), []);
 
-  const setMode = useCallback((mode: "verified" | "estimate") =>
-    setState(prev => ({ ...prev, mode })), []);
+  const setMode = useCallback((mode: "verified" | "estimate") => {
+    setState(prev => ({
+      ...prev,
+      mode,
+      // Switching back to estimate means new basic info was submitted — clear all
+      // stale policy-upload state so the upload step renders fresh next time.
+      ...(mode === "estimate" && {
+        policyUploaded: false,
+        policyVerified: false,
+        policyAnalyzing: false,
+        extractedPolicy: null,
+        idealCoverVerified: 0,
+        shortfallVerified: 0,
+        idealCoverBreakdown: null,
+        coverageStatus: "",
+        insurerReliabilityScore: 0,
+      }),
+    }));
+  }, []);
 
   const setCoverageStatus = useCallback((status: string) =>
     setState(prev => ({ ...prev, coverageStatus: status })), []);
 
   const setInsurerReliabilityScore = useCallback((score: number) =>
     setState(prev => ({ ...prev, insurerReliabilityScore: score })), []);
+
+  const setIdealCoverBreakdown = useCallback((breakdown: TermProtectionState["idealCoverBreakdown"]) =>
+    setState(prev => ({ ...prev, idealCoverBreakdown: breakdown })), []);
+
+  const setReportUrl = useCallback((url: string, filename: string) =>
+    setState(prev => ({ ...prev, reportUrl: url, reportFilename: filename })), []);
 
   const uploadPolicy = useCallback(async (file: File) => {
     setState(prev => ({ ...prev, policyAnalyzing: true, policyUploaded: true }));
@@ -300,7 +328,7 @@ export const TermProtectionProvider: React.FC<{ children: React.ReactNode }> = (
       uploadPolicy, resetState,
       setIdealCoverEstimated, setShortfallEstimated, setIdealCoverVerified, setShortfallVerified,
       setPolicyScore, setScoreReasons, setExistingSumAssured,
-      setMode, setCoverageStatus, setInsurerReliabilityScore,
+      setMode, setCoverageStatus, setInsurerReliabilityScore, setIdealCoverBreakdown, setReportUrl,
     }}>
       {children}
     </TermProtectionContext.Provider>

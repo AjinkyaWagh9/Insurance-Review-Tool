@@ -63,44 +63,44 @@ const TermRecommendationStep = () => {
     policyVerified, extractedPolicy, retirementAge, addEngagement,
     idealCoverBreakdown,
     customerName, scoreReasons, coverageStatus, insurerReliabilityScore,
+    reportUrl, reportFilename,
   } = useTermProtection();
 
   const [shareEmail, setShareEmail] = useState("");
   const [showEmailTab, setShowEmailTab] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [sharePhone, setSharePhone] = useState("");
+  const [showWhatsAppTab, setShowWhatsAppTab] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
 
   const handleSendEmail = async () => {
     if (!shareEmail) {
       toast.error("Please enter an email address");
       return;
     }
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
+    }
 
     setEmailLoading(true);
     try {
-      const result = await sendTermReport({
-        to_email: shareEmail,
-        customer_name: customerName || "",
-        score: policyScore,
-        ideal_cover: activeIdeal,
-        your_cover: existingSumAssured,
-        shortfall: activeShortfall,
-        coverage_status: coverageStatus || "",
-        mode,
-        insurer_name: extractedPolicy?.insurer_name,
-        insurer_reliability_score: insurerReliabilityScore,
-        policy_term_end_age: extractedPolicy?.policy_term_end_age,
-        riders_present: extractedPolicy?.riders_present || [],
-        missing_riders: missingRiders,
-        score_reasons: scoreReasons || [],
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/email/send-zepto-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to_email: shareEmail,
+          customer_name: customerName || "",
+          pdf_url: reportUrl,
+        }),
       });
-
-      if (result.success) {
+      if (res.ok) {
         toast.success(`Report sent to ${shareEmail}`);
         setShareEmail("");
         setShowEmailTab(false);
       } else {
-        toast.error(result.error || "Failed to send email. Please try again.");
+        toast.error("Failed to send email. Please try again.");
       }
     } catch (err) {
       toast.error("Network error. Please check your connection.");
@@ -109,30 +109,53 @@ const TermRecommendationStep = () => {
     }
   };
 
-  const handleDownloadPdf = async () => {
-    setPdfLoading(true);
-    try {
-      await downloadTermPdf({
-        customer_name: customerName || "",
-        score: policyScore,
-        ideal_cover: activeIdeal,
-        your_cover: existingSumAssured,
-        shortfall: activeShortfall,
-        coverage_status: coverageStatus || "",
-        mode,
-        insurer_name: extractedPolicy?.insurer_name,
-        insurer_reliability_score: insurerReliabilityScore,
-        policy_term_end_age: extractedPolicy?.policy_term_end_age,
-        riders_present: presentRiders,
-        missing_riders: missingRiders,
-        score_reasons: scoreReasons || [],
-      });
-      toast.success("PDF downloaded successfully");
-    } catch (err) {
-      toast.error("Failed to generate PDF. Please try again.");
-    } finally {
-      setPdfLoading(false);
+  const handleSendWhatsApp = async () => {
+    if (!sharePhone) {
+      toast.error("Please enter a phone number");
+      return;
     }
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
+    }
+    setWhatsappLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/send-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mobile: sharePhone,
+          file_url: reportUrl,
+          name: customerName || "",
+          filename: reportFilename || "Insurance_Review_Report",
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Report sent to ${sharePhone} on WhatsApp`);
+        setSharePhone("");
+        setShowWhatsAppTab(false);
+      } else {
+        toast.error("Failed to send WhatsApp message. Please try again.");
+      }
+    } catch (err) {
+      toast.error("Network error. Please check your connection.");
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!reportUrl) {
+      toast.error("Report is still being generated. Please try again in a moment.");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = reportUrl;
+    a.download = reportFilename || "Insurance_Report.pdf";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const coveragePercent = activeIdeal > 0
@@ -237,8 +260,8 @@ const TermRecommendationStep = () => {
           </div>
         )}
 
-        {/* Ideal Cover Breakdown */}
-        {mode === "verified" && idealCoverBreakdown && (
+        {/* Ideal Cover Breakdown — shown in both estimate and verified modes */}
+        {idealCoverBreakdown && (
           <div className="mt-4 pt-4 border-t border-border/50">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-3 text-center">Breakdown of your {formatCurrency(activeIdeal)} requirement</p>
             <div className="grid grid-cols-2 gap-3">
@@ -433,24 +456,19 @@ const TermRecommendationStep = () => {
           >
             <Mail className="h-4 w-4" /> Email
           </Button>
-          <Button variant="outline" className="flex-1 h-11 gap-1.5 border-score-green text-score-green hover:bg-score-green/10" onClick={() => {
-            const message = encodeURIComponent(`Income Protection Summary! Coverage: ${coveragePercent}% of ideal. ${activeShortfall > 0 ? `Shortfall: ${formatCurrency(activeShortfall)}` : "Fully covered!"}`);
-            window.open(`https://wa.me/?text=${message}`, "_blank");
-          }}>
+          <Button
+            variant="outline"
+            className={`flex-1 h-11 gap-1.5 border-score-green text-score-green hover:bg-score-green/10 transition-colors ${showWhatsAppTab ? "bg-score-green/10" : ""}`}
+            onClick={() => { setShowWhatsAppTab(!showWhatsAppTab); setShowEmailTab(false); }}
+          >
             <MessageCircle className="h-4 w-4" /> WhatsApp
           </Button>
           <Button
             variant="outline"
             className="flex-1 h-11 gap-1.5 border-score-red text-score-red hover:bg-score-red/10"
             onClick={handleDownloadPdf}
-            disabled={pdfLoading}
           >
-            {pdfLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            {pdfLoading ? "Generating..." : "PDF"}
+            <Download className="h-4 w-4" /> PDF
           </Button>
         </div>
 
@@ -476,6 +494,33 @@ const TermRecommendationStep = () => {
               >
                 {emailLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {emailLoading ? "Sending Report..." : "Send Report via Email"}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showWhatsAppTab && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden space-y-3"
+            >
+              <Input
+                type="tel"
+                placeholder="Enter phone number (e.g. 9876543210)"
+                value={sharePhone}
+                onChange={(e) => setSharePhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                className="h-11"
+              />
+              <Button
+                className="w-full h-10 gap-2 bg-score-green text-white hover:bg-score-green/90"
+                onClick={handleSendWhatsApp}
+                disabled={whatsappLoading}
+              >
+                {whatsappLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                {whatsappLoading ? "Sending..." : "Send Report via WhatsApp"}
               </Button>
             </motion.div>
           )}

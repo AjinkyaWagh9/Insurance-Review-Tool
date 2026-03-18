@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 export interface MotorAddOns {
     zero_dep: boolean;
@@ -43,6 +43,20 @@ export async function sendMotorReport(
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         return { success: false, error: errorData.error || "Failed to send email" };
+    }
+    return res.json();
+}
+
+// ── PDF S3 Upload ─────────────────────────────────────────────────────────
+/** Generates Motor PDF and uploads to S3. Returns { success, url }. Does NOT trigger a browser download. */
+export async function generateAndUploadMotorPdf(data: MotorReportPayload): Promise<{ success: boolean; url?: string; message?: string }> {
+    const res = await fetch(`${BASE_URL}/api/s3/generate-and-upload-motor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        throw new Error("Motor PDF S3 generation failed");
     }
     return res.json();
 }

@@ -53,6 +53,8 @@ const TermBasicInfoStep = ({ onSubmit }: Props) => {
     setBasicInfo,
     setExistingSumAssured,
     setRetirementAge,
+    setMode,
+    setIdealCoverBreakdown,
   } = useTermProtection();
 
   const isValid = name.trim().length > 0 && phone.length >= 10 && age && income > 0 && dependents !== "" && existingSA > 0 && !loading;
@@ -67,7 +69,10 @@ const TermBasicInfoStep = ({ onSubmit }: Props) => {
       tool_type: "term"
     });
 
-    // Store in context so StrengtheningStep and UploadStep can read them
+    // Store in context so StrengtheningStep and UploadStep can read them.
+    // Reset mode to "estimate" so the gap reveal always reads idealCoverEstimated,
+    // not a stale idealCoverVerified left over from a previous policy upload.
+    setMode("estimate");
     setCustomerName(name.trim());
     setContextDependents(parseInt(dependents));
     setBasicInfo(parseInt(age), income, parseInt(dependents), existingSA);
@@ -94,6 +99,7 @@ const TermBasicInfoStep = ({ onSubmit }: Props) => {
       setShortfallEstimated(Math.max(0, scoreData.ideal_cover - existingSA));
       setPolicyScore(scoreData.score);
       setScoreReasons(scoreData.score_reasons);
+      setIdealCoverBreakdown(scoreData.ideal_cover_breakdown ?? null);
     } catch (err) {
       console.error("Score API failed, using fallback:", err);
       const { INCOME_MULTIPLIER, DEPENDENT_BUFFER } = TERM_SCORING_CONSTANTS;

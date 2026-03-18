@@ -26,6 +26,8 @@
  * │  1.4    │ Rule 1–8 fixes: corrected INCOME_MULTIPLIER to 10x,    │
  * │         │ DEPENDENT_BUFFER to ₹50L, renamed child_buffer →       │
  * │         │ dependent_buffer, setBasicInfo now called from Step 1  │
+ * │  1.5    │ Added reportUrl, reportFilename to state for S3 PDF     │
+ * │         │ storage flow (Part C rulebook)                          │
  * └─────────┴────────────────────────────────────────────────────────┘
  */
 
@@ -35,7 +37,7 @@
 // Format: "MAJOR.MINOR"
 //   MINOR bump → new optional fields added (old data still usable, just missing new fields)
 //   MAJOR bump → breaking changes to existing fields or calculation logic
-export const STORAGE_VERSION = "1.4";
+export const STORAGE_VERSION = "1.5";
 
 // ─── SCORING CONSTANTS ──────────────────────────────────────────────────────
 // These MUST match backend: app/core/rules/term_rules.py → TERM_SCORING_CONFIG

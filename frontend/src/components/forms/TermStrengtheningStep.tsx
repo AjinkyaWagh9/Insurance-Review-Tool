@@ -5,7 +5,7 @@ import { AlertTriangle, ChevronRight, Shield, Heart, Loader2, ArrowLeft } from "
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useTermProtection } from "@/context/TermProtectionCheckContext";
-import { fetchTermScore } from "@/services/termApi";
+import { fetchTermScore, generateAndUploadTermPdf } from "@/services/termApi";
 import { getScoreMeta } from "@/utils/scoreMeta";
 
 interface Question {
@@ -82,7 +82,7 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
     setLoanAmount, setRetirementAge, setFamilySecureYears, setMonthlyExpenses,
     loanAmount, monthlyExpenses, retirementAge, familySecureYears,
     setPolicyScore, setIdealCoverEstimated, setShortfallEstimated, setScoreReasons,
-    setCoverageStatus, setInsurerReliabilityScore
+    setCoverageStatus, setInsurerReliabilityScore, setReportUrl
   } = useTermProtection();
   
   const isMounted = useRef(true);
@@ -125,6 +125,7 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
 
   const handleFinalScore = async () => {
     setLoading(true);
+    let pdfPayload: Parameters<typeof downloadTermPdf>[0] | null = null;
     try {
       const updatedScore = await fetchTermScore({
         customer_name: customerName,
@@ -148,6 +149,19 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
         setCoverageStatus(updatedScore.coverage_status || "");
         setInsurerReliabilityScore(updatedScore.insurer_reliability_score || 0);
       }
+      pdfPayload = {
+        customer_name: customerName,
+        score: updatedScore.score,
+        ideal_cover: updatedScore.ideal_cover,
+        your_cover: existingSumAssured,
+        shortfall: Math.max(0, updatedScore.ideal_cover - existingSumAssured),
+        coverage_status: updatedScore.coverage_status || "",
+        mode: "estimate",
+        insurer_reliability_score: updatedScore.insurer_reliability_score || 0,
+        score_reasons: updatedScore.score_reasons,
+        riders_present: [],
+        missing_riders: [],
+      };
     } catch (err) {
       console.error("Final re-score failed, using fallback:", err);
       const { INCOME_MULTIPLIER, DEPENDENT_BUFFER, EXPENSE_YEARS_BUFFER } = TERM_SCORING_CONSTANTS;
@@ -160,20 +174,42 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
         (annualExpenses * EXPENSE_YEARS_BUFFER) -
         0 // savings
       );
+      const fallbackScore = fallbackIdeal > 0
+        ? Math.min(100, Math.round((existingSumAssured / fallbackIdeal) * 100))
+        : 0;
+      const fallbackReasons = [
+        "API Fallback: Estimate based on 10x income + ₹50L/dependent + 2yr expense buffer."
+      ];
       if (isMounted.current) {
         setIdealCoverEstimated(fallbackIdeal);
         setShortfallEstimated(Math.max(0, fallbackIdeal - existingSumAssured));
-        setPolicyScore(
-          fallbackIdeal > 0
-            ? Math.min(100, Math.round((existingSumAssured / fallbackIdeal) * 100))
-            : 0
-        );
-        setScoreReasons([
-          "API Fallback: Estimate based on 10x income + ₹50L/dependent + 2yr expense buffer."
-        ]);
+        setPolicyScore(fallbackScore);
+        setScoreReasons(fallbackReasons);
       }
+      pdfPayload = {
+        customer_name: customerName,
+        score: fallbackScore,
+        ideal_cover: fallbackIdeal,
+        your_cover: existingSumAssured,
+        shortfall: Math.max(0, fallbackIdeal - existingSumAssured),
+        coverage_status: "",
+        mode: "estimate",
+        insurer_reliability_score: 0,
+        score_reasons: fallbackReasons,
+        riders_present: [],
+        missing_riders: [],
+      };
     } finally {
       if (isMounted.current) {
+        if (pdfPayload) {
+          generateAndUploadTermPdf(pdfPayload)
+            .then(result => {
+              if (result.success && result.url) {
+                setReportUrl(result.url, `${pdfPayload!.customer_name}_report.pdf`);
+              }
+            })
+            .catch(err => console.error("Background S3 PDF generation failed:", err));
+        }
         setLoading(false);
         onComplete();
       }

@@ -1,4 +1,4 @@
-const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/term`;
+const BASE_URL = `${import.meta.env.VITE_API_URL}/api/term`;
 
 export interface ScoreRequest {
     customer_name?: string;
@@ -126,6 +126,25 @@ export interface PdfReportRequest {
     score_reasons: string[];
 }
 
+/**
+ * Generates Term PDF and uploads to S3. Returns { success, url }.
+ * Does NOT trigger a browser download.
+ * Called non-blocking from TermStrengtheningStep on "Continue".
+ */
+export async function generateAndUploadTermPdf(payload: PdfReportRequest): Promise<{ success: boolean; url?: string; message?: string }> {
+    const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/s3/generate-and-upload`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        }
+    );
+    if (!res.ok) throw new Error("PDF generation failed");
+    return res.json();
+}
+
+/** @deprecated Use generateAndUploadTermPdf instead. Streams blob download directly. */
 export async function downloadTermPdf(data: PdfReportRequest): Promise<void> {
     const res = await fetch(`${BASE_URL}/generate-pdf`, {
         method: "POST",

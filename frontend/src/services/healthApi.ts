@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 export interface HealthPdfRequest {
     customer_name: string;
@@ -68,6 +68,21 @@ export async function downloadHealthPdf(data: HealthPdfRequest): Promise<void> {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+/** Generates Health PDF and uploads to S3. Returns { success, url }. Does NOT trigger a browser download. */
+export async function generateAndUploadHealthPdf(data: HealthPdfRequest): Promise<{ success: boolean; url?: string; message?: string }> {
+    const res = await fetch(`${BASE_URL}/api/s3/generate-and-upload-health`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+        throw new Error("Health PDF S3 generation failed");
+    }
+
+    return res.json();
 }
 
 export async function sendHealthReport(data: HealthEmailRequest): Promise<void> {
