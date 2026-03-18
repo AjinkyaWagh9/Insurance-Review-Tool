@@ -529,30 +529,41 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
         transition={{ delay: 0.55 }}
         className="rounded-2xl border border-border/50 bg-card p-5 space-y-4"
       >
-        <p className="text-sm font-semibold text-foreground">Your Report</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-foreground">Your Report</p>
+          {!reportUrl && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Preparing report…
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             className={`flex-1 h-11 gap-1.5 transition-colors ${showEmailTab ? "bg-primary/10 border-primary" : ""}`}
             onClick={() => setShowEmailTab(!showEmailTab)}
+            disabled={!reportUrl}
           >
-            <Mail className="h-4 w-4" /> Email
+            {!reportUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+            Email
           </Button>
           <Button
             variant="outline"
             className="flex-1 h-11 gap-1.5 border-score-green text-score-green hover:bg-score-green/10"
             onClick={handleSendWhatsApp}
-            disabled={whatsappLoading}
+            disabled={!reportUrl || whatsappLoading}
           >
-            {whatsappLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+            {whatsappLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : !reportUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
             {whatsappLoading ? "Sending..." : "WhatsApp"}
           </Button>
           <Button
             variant="outline"
             className="flex-1 h-11 gap-1.5 border-sky-500 text-sky-600 hover:bg-sky-500 hover:text-white"
             onClick={handleDownloadPdf}
+            disabled={!reportUrl}
           >
-            <Download className="h-4 w-4" /> PDF
+            {!reportUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            PDF
           </Button>
         </div>
 
