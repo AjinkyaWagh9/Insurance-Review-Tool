@@ -207,6 +207,7 @@ const TermStrengtheningStep = ({ onComplete, onRegisterBack }: Props) => {
           generateAndUploadTermPdf(pdfPayload)
             .then(result => {
               if (result.success && result.url) {
+                sessionStorage.setItem("report_url", result.url);
                 setReportUrl(result.url, `${pdfPayload!.customer_name}_report.pdf`);
               }
             })

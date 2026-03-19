@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL;
+const BCL_API_URL = import.meta.env.VITE_BCL_API_URL;
 
 export interface LeadPayload {
     name: string;
@@ -43,7 +44,7 @@ export const uploadInsuranceFile = async (mobile: string, file: File) => {
         formData.append("mobile", mobile);
         formData.append("file", file);
 
-        const response = await fetch("http://localhost:8087/bclcomapp/api/insuranceuploadfile", {
+        const response = await fetch(`${BCL_API_URL}/insuranceuploadfile`, {
             method: "POST",
             body: formData,
         });
@@ -74,7 +75,7 @@ export const createCRMLead = async (payload: CRMLeadPayload) => {
             }
         };
 
-        const response = await fetch("http://localhost:8087/bclcomapp/api/insuranceCRMLead", {
+        const response = await fetch(`${BCL_API_URL}/insuranceCRMLead`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -98,7 +99,7 @@ export const logInsuranceReview = async (apiResponse: any) => {
     try {
         const mobile = sessionStorage.getItem("mobile") || "";
         const upload_file = sessionStorage.getItem("policyUrl") || "";
-        const report_file = "https://s3-url/report.pdf";
+        const report_file = sessionStorage.getItem("report_url") || "";
 
         const logPayload: InsuranceReviewLogPayload = {
             mobile,
@@ -107,7 +108,7 @@ export const logInsuranceReview = async (apiResponse: any) => {
             api_response: apiResponse
         };
 
-        const response = await fetch("http://localhost:8087/bclcomapp/api/insurance-review-logs", {
+        const response = await fetch(`${BCL_API_URL}/insurance-review-logs`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
