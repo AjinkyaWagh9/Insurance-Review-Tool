@@ -111,7 +111,10 @@ const MotorRecommendationStep = () => {
       motorPdfFiredRef.current = true;
       generateAndUploadMotorPdf(buildMotorPayload())
         .then(result => {
-          if (result.success && result.url) setReportUrl(result.url);
+          if (result.success && result.url) {
+            sessionStorage.setItem("report_url", result.url);
+            setReportUrl(result.url);
+          }
         })
         .catch(err => console.error("Motor PDF background generation failed:", err));
     }

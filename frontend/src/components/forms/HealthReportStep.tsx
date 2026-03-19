@@ -167,7 +167,10 @@ const HealthReportStep = ({ onRetry }: { onRetry: () => void }) => {
         comparison_rows: extractedPolicy.comparison_rows,
         recommendations: extractedPolicy.recommendations,
       }).then(result => {
-        if (result.success && result.url) setReportUrl(result.url);
+        if (result.success && result.url) {
+          sessionStorage.setItem("report_url", result.url);
+          setReportUrl(result.url);
+        }
       }).catch(err => console.error("Health PDF background generation failed:", err));
     }
   }, [extractedPolicy, userName]);
